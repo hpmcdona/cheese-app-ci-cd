@@ -44,14 +44,30 @@ cheese-app-cicd-tutorial/
     ├── integration/
     │   └── test_api.py              # Integration tests (TestClient)
     └── system/
-        └── test_api.py              # System tests (real HTTP)
+        └── test_system_api.py       # System tests (real HTTP)
 ```
 
 ---
 
-## Part 1: Local Development with Docker
+## Part 1: Understanding the Codebase
 
-### Build & Run the Container
+Let's start by exploring the structure and functionality of our application.
+
+### Explore the Project Structure
+
+The main API is in `src/api-service/api/service.py`. This file contains:
+- A FastAPI application with CORS middleware
+- Three endpoints: `/`, `/health`, and `/euclidean_distance/`
+- Uses a utility function `power()` from `api/utils.py`
+
+The tests are organized in three levels:
+- `tests/unit/` - Test individual functions in isolation
+- `tests/integration/` - Test API endpoints using FastAPI TestClient
+- `tests/system/` - Test the complete running system with real HTTP requests
+
+### Run the Application
+
+Let's see the API in action by running it locally with Docker.
 
 1. **Build and start the Docker container**
 ```bash
@@ -74,123 +90,46 @@ Open your browser to:
 - `http://localhost:9000/health` - Health check endpoint
 - `http://localhost:9000/euclidean_distance/?x=3&y=4` - Calculate Euclidean distance (returns 5.0)
 
-### Run Tests
+---
 
-All tests can be run inside the Docker container to ensure consistency with the CI/CD environment.
+## Part 2: Identifying Code Quality Issues
 
-#### Option 1: Run Tests with Docker Commands (Recommended)
+Before we automate quality checks, let's manually check what issues exist in our codebase.
 
+### Run Linters to Find Issues
+
+Let's see what formatting and style issues exist:
+
+**Option A: Check with Docker**
 ```bash
 # Build the image first
 docker build -t cheese-app-api:local .
 
-# Run unit tests
-docker run --rm cheese-app-api:local pytest tests/unit/ -v
+# Check formatting
+docker run --rm cheese-app-api:local black --check api/
 
-# Run integration tests (using FastAPI TestClient)
-docker run --rm cheese-app-api:local pytest tests/integration/ -v
+# Check formatting with diff
+docker run --rm cheese-app-api:local black --check --diff api/
 
-# Run all tests
-docker run --rm cheese-app-api:local pytest tests/ -v
-
-# Run tests with coverage
-docker run --rm cheese-app-api:local pytest tests/unit/ --cov=api --cov-report=term
+# Check code quality
+docker run --rm cheese-app-api:local flake8 --max-line-length=120 api/
 ```
 
-#### Option 2: Run Tests Inside Interactive Container
-
-Open a new terminal and start a container:
+**Option B: Check Locally (if Python installed)**
 ```bash
-sh docker-shell.sh
-```
+pip install black flake8
 
-Within the container, run:
-```bash
-# Run only unit tests
-pytest tests/unit/ -v
-
-# Run integration tests
-pytest tests/integration/ -v
-
-# Run with coverage
-pytest tests/unit/ --cov=api --cov-report=html
-```
-
-#### Option 3: System Tests Against Live Server
-
-System tests make real HTTP requests to a running server, testing the complete system end-to-end:
-
-```bash
-# Terminal 1: Start the API server
-docker run -d --name api-server -p 9000:9000 -e DEV=1 cheese-app-api:local
-
-# Terminal 2: Run system tests against the live server
-docker run --rm --network host cheese-app-api:local pytest tests/system/ -v
-
-# Clean up when done
-docker stop api-server && docker rm api-server
-```
-
-System tests will:
-- Check if the API server is running at `http://localhost:9000`
-- Make real HTTP requests to test the complete system
-- Skip tests if server is not accessible
-
----
-
-## Part 2: Pre-commit Hooks (Local CI)
-
-### Check the Messy Code (Optional but Recommended)
-
-Before setting up pre-commit hooks, let's see what issues exist in our code.
-
-Within the Docker container:
-```bash
 # Check formatting issues with Black
-black --check api/
+python3 -m black --check src/api-service/api/
 
 # Check formatting issues with detailed diff view
-black --check --diff api/
-```
-
-Or locally (if you have Python installed):
-```bash
-pip install black
-
-# Check formatting issues
-python3 -m black --check src/api-service/api/
 python3 -m black --check --diff src/api-service/api/
+
+# Check code quality with Flake8
+python3 -m flake8 src/api-service/api/
 ```
 
-You'll see formatting inconsistencies. This shows why automation is important!
-
-### Install Pre-commit Framework
-
-Outside the container:
-```bash
-pip install pre-commit
-```
-
-### Install the Hooks
-```bash
-# From the root directory
-pre-commit install
-```
-
-This installs Git hooks that will run automatically before each commit.
-
-### Test the Hooks
-```bash
-# Run on all files
-pre-commit run --all-files
-```
-
-### What Gets Checked?
-- **trailing-whitespace**: Remove trailing spaces
-- **end-of-file-fixer**: Ensure files end with newline
-- **check-yaml**: Validate YAML syntax
-- **black**: Auto-format Python code (120 char lines)
-- **flake8**: Check Python code quality
+You'll see formatting inconsistencies and style issues. This shows why automation is important!
 
 ---
 
@@ -221,9 +160,125 @@ pre-commit run --all-files
 - Example: `curl http://localhost:9000/euclidean_distance/?x=3&y=4`
 - **Run in CI/CD and locally using Docker with --network host**
 
+### Run Tests
+
+All tests run inside Docker containers to ensure consistency with the CI/CD environment.
+
+#### Option 1: Run Unit & Integration Tests (Recommended)
+
+These tests don't require a running server and can be executed directly:
+
+```bash
+# Build the image first
+docker build -t cheese-app-api:local .
+
+# Run unit tests only
+docker run --rm cheese-app-api:local pytest tests/unit/ -v
+
+# Run integration tests only
+docker run --rm cheese-app-api:local pytest tests/integration/ -v
+
+# Run both unit and integration tests
+docker run --rm cheese-app-api:local pytest tests/unit/ tests/integration/ -v
+
+# Run with coverage
+docker run --rm cheese-app-api:local pytest tests/unit/ --cov=api --cov-report=term
+```
+
+#### Option 2: Run System Tests
+
+System tests require a live server because they make real HTTP requests to test the complete system end-to-end:
+
+```bash
+# Build image first
+docker build -t cheese-app-api:local .
+
+# Start the API server
+docker run -d --name api-server -p 9000:9000 -e DEV=1 cheese-app-api:local
+
+# Run system tests against the live server
+docker run --rm --network host cheese-app-api:local pytest tests/system/ -v
+
+# Clean up when done
+docker stop api-server && docker rm api-server
+```
+
+**Note:** System tests will skip if the server isn't running at `http://localhost:9000`.
+
+#### Option 3: Interactive Container Workflow
+
+For development, you can run tests inside an interactive container:
+
+```bash
+# Start interactive container
+sh docker-shell.sh
+```
+
+Within the container, run:
+```bash
+# Run unit tests
+pytest tests/unit/ -v
+
+# Run integration tests
+pytest tests/integration/ -v
+
+# Run both
+pytest tests/unit/ tests/integration/ -v
+
+# Run with coverage
+pytest tests/unit/ --cov=api --cov-report=html
+```
+
+**Note:** For system tests in this workflow, you'll need to start the server in another terminal first (see Option 2).
+
 ---
 
-## Part 4: GitHub Actions (Remote CI/CD)
+## Part 4: Automating with Pre-commit Hooks
+
+Pre-commit hooks run automatically before each commit to catch issues early.
+
+### Install Pre-commit Framework
+
+Outside the container:
+```bash
+pip install pre-commit
+```
+
+### Install the Hooks
+```bash
+# From the root directory
+pre-commit install
+```
+
+This installs Git hooks that will run automatically before each commit.
+
+### Run the Hooks
+
+After installation, the hooks will run automatically every time you commit:
+```bash
+git commit -m "Your commit message"
+# Pre-commit hooks will run automatically!
+```
+
+Alternatively, you can run the hooks manually without committing:
+```bash
+# Run on all files
+pre-commit run --all-files
+
+# Or run on staged files only
+pre-commit run
+```
+
+### What Gets Checked?
+- **trailing-whitespace**: Remove trailing spaces
+- **end-of-file-fixer**: Ensure files end with newline
+- **check-yaml**: Validate YAML syntax
+- **black**: Auto-format Python code (120 char lines)
+- **flake8**: Check Python code quality
+
+---
+
+## Part 5: GitHub Actions (Remote CI/CD)
 
 All CI/CD tests run inside Docker containers using Python 3.11 (same as production), ensuring complete consistency between local development, CI, and production environments.
 
@@ -238,12 +293,6 @@ Runs on every push and pull request to `main`:
 5. **System Tests Job**: Start server container and run end-to-end tests with real HTTP requests
 6. **Test Summary Job**: Aggregates results from all test jobs
 
-**Key Benefits:**
-- ✅ Same Python version (3.11) in CI as production
-- ✅ Same dependencies from `pyproject.toml`
-- ✅ Build once, test everywhere
-- ✅ No dependency conflicts between CI and Docker
-- ✅ Complete testing pyramid: Unit → Integration → System
 
 ### Workflow 2: Docker Build Test (`.github/workflows/docker-build.yml`)
 
@@ -269,7 +318,7 @@ git push
 
 ---
 
-## Part 5: Branch Protection (Optional)
+## Part 6: Branch Protection (Optional)
 
 ### Configure Branch Rules
 
@@ -301,7 +350,7 @@ git push origin feature/test-protection
 
 ---
 
-## Student Exercise: Add a New Endpoint with Full CI/CD
+## Part 7: Student Exercise - Add a New Endpoint with Full CI/CD
 
 1. **Add a new endpoint** to `src/api-service/api/service.py`:
 
