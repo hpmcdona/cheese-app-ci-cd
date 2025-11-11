@@ -1,6 +1,6 @@
-# Cheese App - CI/CD Tutorial
+# Cheese App - CI Tutorial
 
-In this tutorial we will setup Continuous Integration and Continuous Deployment (CI/CD) for a containerized Python API application. We'll learn how to automate code quality checks, testing, and deployment pipelines.
+In this tutorial we will setup Continuous Integration (CI) for a containerized Python API application. We'll learn how to automate code quality checks, testing, and build pipelines.
 
 ## Prerequisites
 * Have Docker installed
@@ -8,25 +8,24 @@ In this tutorial we will setup Continuous Integration and Continuous Deployment 
 * Git installed
 * GitHub account
 
-## Tutorial: Adding CI/CD to the Cheese App
+## Tutorial: Adding CI to the Cheese App
 
 This tutorial demonstrates how to add automation to a Python FastAPI application using:
 * **Pre-commit hooks** for local code quality checks (linting/formatting)
 * **Pytest** for automated testing (unit & integration tests)
-* **GitHub Actions** for remote CI/CD pipelines
-* **Docker** for containerized development and deployment
+* **GitHub Actions** for remote CI pipelines
+* **Docker** for containerized development and testing
 
 ### Clone the repository
 - Clone or download from your repository
 
 ### Project Structure
 ```
-cheese-app-cicd-tutorial/
+cheese-app-ci-cd/
 ├── .pre-commit-config.yaml          # Pre-commit hooks configuration
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                   # Main CI/CD pipeline
-│       └── docker-build.yml         # Docker build test
+│       └── ci.yml                   # Main CI pipeline
 ├── Dockerfile                       # Container definition
 ├── docker-shell.sh                  # Start interactive container
 ├── docker-entrypoint.sh             # Container entrypoint
@@ -90,6 +89,7 @@ Open your browser to:
 - `http://localhost:9000/health` - Health check endpoint
 - `http://localhost:9000/euclidean_distance/?x=3&y=4` - Calculate Euclidean distance (returns 5.0)
 
+Please exit and remove your container after this, before starting with the next Part.
 ---
 
 ## Part 2: Identifying Code Quality Issues
@@ -105,28 +105,24 @@ Let's see what formatting and style issues exist:
 # Build the image first
 docker build -t cheese-app-api:local .
 
-# Check formatting
-docker run --rm cheese-app-api:local black --check api/
+# Check code quality
+docker run --rm cheese-app-api:local flake8 --max-line-length=120 api/
 
 # Check formatting with diff
 docker run --rm cheese-app-api:local black --check --diff api/
 
-# Check code quality
-docker run --rm cheese-app-api:local flake8 --max-line-length=120 api/
 ```
 
 **Option B: Check Locally (if Python installed)**
 ```bash
 pip install black flake8
 
-# Check formatting issues with Black
-python3 -m black --check src/api-service/api/
+# Check code quality with Flake8
+flake8 src/api-service/api/
 
 # Check formatting issues with detailed diff view
-python3 -m black --check --diff src/api-service/api/
+black --check --diff src/api-service/api/
 
-# Check code quality with Flake8
-python3 -m flake8 src/api-service/api/
 ```
 
 You'll see formatting inconsistencies and style issues. This shows why automation is important!
@@ -162,7 +158,7 @@ You'll see formatting inconsistencies and style issues. This shows why automatio
 
 ### Run Tests
 
-All tests run inside Docker containers to ensure consistency with the CI/CD environment.
+All tests run inside Docker containers to ensure consistency with the CI environment.
 
 #### Option 1: Run Unit & Integration Tests (Recommended)
 
@@ -278,11 +274,11 @@ pre-commit run
 
 ---
 
-## Part 5: GitHub Actions (Remote CI/CD)
+## Part 5: GitHub Actions (Remote CI)
 
-All CI/CD tests run inside Docker containers using Python 3.11 (same as production), ensuring complete consistency between local development, CI, and production environments.
+All CI tests run inside Docker containers using Python 3.11 (same as production), ensuring complete consistency between local development, CI, and production environments.
 
-### Workflow 1: Main CI Pipeline (`.github/workflows/ci.yml`)
+### CI Pipeline (`.github/workflows/ci.yml`)
 
 Runs on every push and pull request to `main`:
 
@@ -293,18 +289,10 @@ Runs on every push and pull request to `main`:
 5. **System Tests Job**: Start server container and run end-to-end tests with real HTTP requests
 6. **Test Summary Job**: Aggregates results from all test jobs
 
-
-### Workflow 2: Docker Build Test (`.github/workflows/docker-build.yml`)
-
-Verifies that Docker builds succeed and the server can start:
-- Builds the api-service container
-- Starts container as a server and verifies it responds
-- Ensures the Docker image works correctly in server mode
-
 ### Push to GitHub
 ```bash
 git add .
-git commit -m "Add CI/CD pipeline"
+git commit -m "Add CI pipeline"
 git push
 ```
 
@@ -350,7 +338,7 @@ git push origin feature/test-protection
 
 ---
 
-## Part 7: Student Exercise - Add a New Endpoint with Full CI/CD
+## Part 7: Student Exercise - Add a New Endpoint with Full CI
 
 1. **Add a new endpoint** to `src/api-service/api/service.py`:
 
@@ -391,13 +379,13 @@ git commit -m "Add addition endpoint with tests"
 git push
 ```
 
-5. **Watch CI/CD pipeline run automatically**
+5. **Watch CI pipeline run automatically**
 
 ---
 
 ## Quick Command Reference
 
-### Docker-First Workflow (Recommended - Matches CI/CD)
+### Docker-First Workflow (Recommended - Matches CI)
 ```bash
 # Build Docker image
 docker build -t cheese-app-api:local .
@@ -440,9 +428,9 @@ black api/                                                   # Auto-format
 ### Run Locally Without Docker (Requires Python Installation)
 ```bash
 # Code Quality Checks
+python3 -m flake8 src/api-service/api/                     # Run linter
 python3 -m black --check src/api-service/api/              # Check formatting
 python3 -m black src/api-service/api/                      # Auto-format code
-python3 -m flake8 src/api-service/api/                     # Run linter
 
 # Pre-commit Hooks
 pip install pre-commit                                      # Install framework
@@ -503,16 +491,6 @@ docker logs <container-name>
 - Common issue: Missing dependencies in pyproject.toml
 - Common issue: Wrong file paths in workflow
 - Common issue: Black/Flake8 version mismatch between local and CI
-
----
-
-## Key Takeaways
-
-✅ **Pre-commit hooks** catch issues before they're committed
-✅ **Automated testing** ensures code works as expected
-✅ **GitHub Actions** runs tests on every push automatically
-✅ **Docker** ensures consistent environment across dev/CI/prod
-✅ **Branch protection** prevents broken code from reaching main
 
 ---
 
