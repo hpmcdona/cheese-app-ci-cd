@@ -56,12 +56,13 @@ class TestPower:
     def test_power_fractional_exponent(self):
         """Test power with fractional exponent (roots)"""
         assert power(4, 0.5) == pytest.approx(2.0)  # square root
-        assert power(8, 1/3) == pytest.approx(2.0)  # cube root
+        assert power(8, 1 / 3) == pytest.approx(2.0)  # cube root
         assert power(16, 0.25) == pytest.approx(2.0)  # fourth root
 
     def test_power_special_float_values(self):
         """Test special float values"""
         import math
+
         assert math.isnan(power(float("nan"), 2))
         assert power(float("inf"), 2) == float("inf")
         assert power(2, float("inf")) == float("inf")

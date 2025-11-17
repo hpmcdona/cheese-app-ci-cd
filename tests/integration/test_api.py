@@ -86,4 +86,6 @@ async def test_api_health_check():
     response = client.get("/")
     assert response.status_code == 200
     # API should respond quickly
-    assert response.elapsed.total_seconds() < 1 if hasattr(response, "elapsed") else True
+    assert (
+        response.elapsed.total_seconds() < 1 if hasattr(response, "elapsed") else True
+    )
